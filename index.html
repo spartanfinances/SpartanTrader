@@ -238,6 +238,51 @@
 </div>
 <script>
 // ============================================================
+// SHIM DE ALMACENAMIENTO — usa window.storage si existe (dentro de
+// Claude.ai), o localStorage si la app corre standalone (GitHub Pages,
+// PWA instalada, etc.). Misma interfaz async en ambos casos.
+// ============================================================
+(function(){
+  if(typeof window.storage !== 'undefined') return; // ya existe (entorno Claude)
+
+  var PREFIX = 'trackerprotrader:';
+
+  window.storage = {
+    get: async function(key, shared){
+      var raw = localStorage.getItem(PREFIX + key);
+      if(raw === null) throw new Error('not found: ' + key);
+      return { key: key, value: raw, shared: !!shared };
+    },
+    set: async function(key, value, shared){
+      try{
+        localStorage.setItem(PREFIX + key, value);
+        return { key: key, value: value, shared: !!shared };
+      }catch(e){
+        console.error('localStorage set failed', e);
+        return null;
+      }
+    },
+    delete: async function(key, shared){
+      var existed = localStorage.getItem(PREFIX + key) !== null;
+      localStorage.removeItem(PREFIX + key);
+      return { key: key, deleted: existed, shared: !!shared };
+    },
+    list: async function(prefix, shared){
+      var keys = [];
+      for(var i=0;i<localStorage.length;i++){
+        var k = localStorage.key(i);
+        if(k && k.indexOf(PREFIX) === 0){
+          var short = k.slice(PREFIX.length);
+          if(!prefix || short.indexOf(prefix) === 0) keys.push(short);
+        }
+      }
+      return { keys: keys, prefix: prefix, shared: !!shared };
+    }
+  };
+})();
+
+
+// ============================================================
 // GAUGES SVG (dial semicircular tipo Win Rate, anillo tipo Profit Factor)
 // ============================================================
 function polarToCartesian(cx, cy, r, angleDeg){

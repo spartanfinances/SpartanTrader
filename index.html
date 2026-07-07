@@ -705,6 +705,8 @@ async function resetTodo(){
 
 function getUiState(){ return uiState; }
 
+function setCuentas(v){ cuentas = v; }
+
 
 
 // ============================================================
@@ -1073,6 +1075,8 @@ function renderHeader(){
     '</div>' +
     '<div class="header-actions">' +
       '<button type="button" class="theme-toggle" id="themeToggle" title="Cambiar tema">' + (isDarkTheme()?'☀️':'🌙') + '</button>' +
+      '<input type="file" accept="application/json" id="importFileInput" style="display:none;">' +
+      '<button type="button" class="btn-ghost" id="importBtn">Importar JSON</button>' +
       '<button type="button" class="btn-ghost" id="exportBtn">Exportar JSON</button>' +
       '<button type="button" class="btn-ghost danger" id="resetBtn">Borrar todo</button>' +
     '</div>' +
@@ -1416,6 +1420,34 @@ function wireHeaderEvents(){
     a.href = url; a.download = 'centro-de-control-backup.json';
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
+  };
+  document.getElementById('importBtn').onclick = function(){
+    document.getElementById('importFileInput').click();
+  };
+  document.getElementById('importFileInput').onchange = function(e){
+    var file = e.target.files && e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = async function(ev){
+      try{
+        var data = JSON.parse(ev.target.result);
+        var resumen = 'Se encontraron: ' +
+          (data.cuentas ? data.cuentas.length : 0) + ' cuentas, ' +
+          (data.operaciones ? data.operaciones.length : 0) + ' operaciones de futuros, ' +
+          (data.opciones ? data.opciones.length : 0) + ' operaciones de opciones.\n\n' +
+          '¿Reemplazar TODOS los datos actuales con este respaldo?';
+        if(!confirm(resumen)) return;
+        if(Array.isArray(data.cuentas)) { setCuentas(data.cuentas); await saveCuentas(); }
+        if(Array.isArray(data.operaciones)) { operaciones = data.operaciones; await saveOperaciones(); }
+        if(Array.isArray(data.opciones)) { opciones = data.opciones; await saveOpciones(); }
+        alert('Datos importados correctamente.');
+        render();
+      }catch(err){
+        alert('El archivo no es un JSON válido de esta app: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // permitir re-importar el mismo archivo si hace falta
   };
 }
 
